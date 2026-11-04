@@ -18,7 +18,10 @@ import {
   loginSchema,
   signupSchema,
   verifyEmailSchema,
+  resendVerificationSchema
 } from "../schemas/auth.schema.ts";
+import { resendVerification } from "../controllers/auth.controller.ts";
+import { resendLimiter } from "../middlewares/rateLimiter.ts";
 
 const router = Router();
 
@@ -28,6 +31,12 @@ router.post(
   verifyLimiter,
   validate(verifyEmailSchema),
   verifyEmail,
+);
+router.post(
+  "/resend-verification",
+  resendLimiter,
+  validate(resendVerificationSchema),
+  resendVerification,
 );
 router.post(
   "/login",

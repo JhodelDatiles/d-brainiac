@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router";
 import PublicNavbar from "../components/PublicNavbar";
 import { useAuth } from "../context/UseAuth";
-import { getErrorMessage } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 
 export default function Signup() {
   const { user, isLoading, signup } = useAuth();
@@ -12,6 +12,8 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState("");
+  const [resent, setResent] = useState(false);
+  const [resending, setResending] = useState(false);
 
   if (isLoading) return null;
   if (user) return <Navigate to="/library" replace />;
@@ -21,14 +23,17 @@ export default function Signup() {
     setError("");
     if (password.length < 8)
       return setError("Password must be at least 8 characters.");
-    if (password.length > 72)
-      return setError("Password must be at most 72 characters.");
+    if (new TextEncoder().encode(password).length > 72)
+      return setError(
+        "Password must be at most 72 bytes (fewer if you use emoji or accents).",
+      );
     if (password !== confirm) return setError("Passwords do not match.");
 
     setLoading(true);
     try {
       await signup(email, password, confirm);
       setSentTo(email.trim());
+      setResent(false);
       setPassword("");
       setConfirm("");
     } catch (err) {
@@ -43,6 +48,26 @@ export default function Signup() {
     }
   };
 
+  const handleResend = async () => {
+    setResending(true);
+    setResent(false);
+    setError("");
+    try {
+      await api.post("/auth/resend-verification", { email: sentTo });
+      setResent(true);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not resend. Please try again."));
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleUseDifferentEmail = () => {
+    setSentTo("");
+    setResent(false);
+    setError("");
+  };
+
   if (sentTo) {
     return (
       <div className="min-h-screen bg-base-200">
@@ -52,16 +77,44 @@ export default function Signup() {
             <div className="card-body gap-3">
               <h1 className="card-title text-2xl">Check your email</h1>
               <p className="text-sm opacity-70">
-                We sent a confirmation link to{" "}
-                <span className="font-semibold">{sentTo}</span>. Click it to
+                If this address can be registered, we sent a confirmation link
+                to <span className="font-semibold">{sentTo}</span>. Click it to
                 activate your account, then log in.
               </p>
               <p className="text-sm opacity-70">
-                The link expires in 24 hours. Wrong address? Sign up again with
-                the right one.
+                The link expires in 24 hours. Wrong address? Use a different
+                email below.
               </p>
+
+              {resent && (
+                <div role="alert" className="alert alert-success alert-soft">
+                  If the email can be confirmed, a new link is on its way.
+                </div>
+              )}
+              {error && (
+                <div role="alert" className="alert alert-error alert-soft">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending && (
+                  <span className="loading loading-spinner loading-sm" />
+                )}
+                Resend email
+              </button>
+
               <div className="card-actions mt-2 justify-between">
-                <button className="btn btn-ghost" onClick={() => setSentTo("")}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={handleUseDifferentEmail}
+                >
                   Use a different email
                 </button>
                 <Link to="/login" className="btn btn-primary">

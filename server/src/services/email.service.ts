@@ -1,7 +1,6 @@
 import axios from "axios";
 import nodemailer, { type Transporter } from "nodemailer";
 import { config } from "../envConfig.ts";
-
 interface MailOptions {
   to: string;
   subject: string;
@@ -16,15 +15,18 @@ const getDevTransporter = async (): Promise<Transporter> => {
 
   if (config.smtp) {
     // Email service file — Gmail SMTP transporter
-    devTransporter = nodemailer.createTransport({
+    const smtpOptions = {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.port === 465,
-      auth: {
-        user: config.smtp.user,
-        pass: config.smtp.pass,
-      },
-    });
+      auth: { user: config.smtp.user, pass: config.smtp.pass },
+      family: 4,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+    };
+
+    devTransporter = nodemailer.createTransport(smtpOptions);
   } else {
     // No SMTP configured: use a throwaway Ethereal inbox
     const account = await nodemailer.createTestAccount();
