@@ -22,6 +22,11 @@ const envSchema = z
     JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
     JWT_EXPIRES_IN_DAYS: z.coerce.number().int().positive().default(7),
 
+    // Cloudinary (avatar storage)
+    CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    CLOUDINARY_API_KEY: z.string().optional(),
+    CLOUDINARY_API_SECRET: z.string().optional(),
+
     // Development: optional SMTP (e.g. Mailtrap). Leave empty to use Ethereal.
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -65,6 +70,16 @@ export const config = {
           port: env.SMTP_PORT,
           user: env.SMTP_USER,
           pass: env.SMTP_PASS,
+        }
+      : undefined,
+  cloudinary:
+    env.CLOUDINARY_CLOUD_NAME &&
+    env.CLOUDINARY_API_KEY &&
+    env.CLOUDINARY_API_SECRET
+      ? {
+          cloudName: env.CLOUDINARY_CLOUD_NAME,
+          apiKey: env.CLOUDINARY_API_KEY,
+          apiSecret: env.CLOUDINARY_API_SECRET,
         }
       : undefined,
 };

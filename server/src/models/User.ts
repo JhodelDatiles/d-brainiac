@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { GENDERS } from "../constants/gender.ts";
 
 const userSchema = new Schema(
   {
@@ -16,6 +17,10 @@ const userSchema = new Schema(
     // Stored as a SHA-256 hash, never the raw token
     verificationToken: { type: String, select: false },
     verificationTokenExpires: { type: Date, select: false },
+    name: { type: String, trim: true, maxlength: 50 },
+    bio: { type: String, trim: true, maxlength: 300, default: "" },
+    gender: { type: String, enum: GENDERS, default: "prefer-not-to-say" },
+    avatarUrl: { type: String },
   },
   { timestamps: true },
 );

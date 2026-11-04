@@ -23,6 +23,7 @@ export const signupLimiter = limiter(10);
 export const resendLimiter = limiter(5);
 export const loginLimiter = limiter(30);
 export const verifyLimiter = limiter(20);
+export const avatarLimiter = limiter(10);
 
 // Limits password guessing against one account (per IP + email).
 // Successful logins don't count against the limit.

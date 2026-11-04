@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Request, Response } from "express";
 import { config } from "../envConfig.ts";
 import { User } from "../models/User.ts";
+import { toPublicUser } from "../utils/publicUser.ts";
 import type {
   LoginInput,
   ResendVerificationInput,
@@ -174,11 +175,6 @@ export const verifyEmail = async (
 
   res.json({ message: "Email confirmed. You can now log in." });
 };
-
-const toPublicUser = (user: { id: string; email: string }) => ({
-  id: user.id,
-  email: user.email,
-});
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body as LoginInput;

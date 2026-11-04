@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GENDERS } from "../constants/gender.ts";
 
 const emailField = z
   .string()
@@ -58,3 +59,14 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export const resendVerificationSchema = z.object({ email: emailField });
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+
+export const updateProfileSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(50, "Name is too long"),
+  bio: z.string().trim().max(300, "Bio must be at most 300 characters"),
+  gender: z.enum(GENDERS, "Select a valid option"),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

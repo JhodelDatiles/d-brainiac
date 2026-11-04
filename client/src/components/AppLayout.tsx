@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../context/UseAuth";
 import { LibraryIcon, MenuIcon, SettingsIcon, UserIcon } from "./Icons";
+import Avatar from "./Avatar";
 
 const links = [
   { to: "/library", label: "Library", icon: <LibraryIcon /> },
@@ -41,16 +42,8 @@ export default function AppLayout() {
             </Link>
           </div>
           <div className="navbar-end">
-            <Link
-              to="/profile"
-              className="avatar avatar-placeholder"
-              aria-label="Profile"
-            >
-              <div className="w-9 rounded-full bg-primary text-primary-content">
-                <span className="text-sm uppercase">
-                  {user?.name.charAt(0) ?? "?"}
-                </span>
-              </div>
+            <Link to="/profile" aria-label="Profile">
+              <Avatar name={user?.name ?? ""} src={user?.avatarUrl ?? null} />
             </Link>
           </div>
         </header>

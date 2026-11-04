@@ -2,19 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { AuthContext, type AuthContextValue, type User } from "./AuthContext";
 
-interface ApiUser {
-  id: string;
-  email: string;
-}
+type ApiUser = User;
 
 // The server only stores email for now; name/bio are placeholders until
 // profile endpoints exist.
-const toUser = (u: ApiUser): User => ({
-  id: u.id,
-  email: u.email,
-  name: u.email.split("@")[0],
-  bio: "",
-});
+const toUser = (u: ApiUser): User => ({ ...u });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -62,7 +54,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       // TODO: PATCH /api/users/me (name/bio aren't stored on the server yet)
       updateProfile: async (data) => {
-        setUser((prev) => (prev ? { ...prev, ...data } : prev));
+        const res = await api.patch<{ user: ApiUser }>("/users/me", data);
+        setUser(toUser(res.data.user));
+      },
+      uploadAvatar: async (file) => {
+        const body = new FormData();
+        body.append("avatar", file);
+        const res = await api.put<{ user: ApiUser }>("/users/me/avatar", body);
+        setUser(toUser(res.data.user));
+      },
+      removeAvatar: async () => {
+        const res = await api.delete<{ user: ApiUser }>("/users/me/avatar");
+        setUser(toUser(res.data.user));
       },
       changePassword: async (current, next) => {
         await api.patch("/users/me/password", {
