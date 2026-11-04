@@ -64,10 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfile: async (data) => {
         setUser((prev) => (prev ? { ...prev, ...data } : prev));
       },
-      // TODO: PATCH /api/users/me/password
-      changePassword: async () => {},
-      // TODO: DELETE /api/users/me
-      deleteAccount: async () => {
+      changePassword: async (current, next) => {
+        await api.patch("/users/me/password", {
+          currentPassword: current,
+          newPassword: next,
+        });
+      },
+      deleteAccount: async (password) => {
+        await api.delete("/users/me", { data: { password } });
         setUser(null);
       },
     }),

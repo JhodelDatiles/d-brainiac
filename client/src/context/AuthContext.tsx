@@ -19,7 +19,8 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+

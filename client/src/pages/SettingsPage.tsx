@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../context/UseAuth";
 import { useTheme } from "../context/UseTheme";
+import { getErrorMessage } from "../lib/api";
 
 export default function Settings() {
   const { logout, changePassword, deleteAccount } = useAuth();
@@ -16,6 +17,9 @@ export default function Settings() {
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [deletePw, setDeletePw] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const handlePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,8 +36,8 @@ export default function Settings() {
       setCurrent("");
       setNext("");
       setConfirm("");
-    } catch {
-      setPwError("Could not change password. Check your current password.");
+    } catch (err) {
+      setPwError(getErrorMessage(err, "Could not change password."));
     } finally {
       setPwLoading(false);
     }
@@ -44,11 +48,15 @@ export default function Settings() {
     navigate("/", { replace: true });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
     setDeleting(true);
     try {
-      await deleteAccount();
+      await deleteAccount(deletePw);
       navigate("/", { replace: true });
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, "Could not delete your account."));
     } finally {
       setDeleting(false);
     }
@@ -194,29 +202,46 @@ export default function Settings() {
 
       {/* Delete confirmation */}
       <dialog ref={deleteDialog} className="modal">
-        <div className="modal-box">
+        <form onSubmit={handleDelete} className="modal-box">
           <h3 className="text-lg font-bold">Delete your account?</h3>
           <p className="py-4">
             This will permanently remove your account and all of its data. This
-            action cannot be undone.
+            action cannot be undone. Enter your password to confirm.
           </p>
+          {deleteError && (
+            <div role="alert" className="alert alert-error alert-soft mb-3">
+              {deleteError}
+            </div>
+          )}
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="Password"
+            className="input w-full"
+            value={deletePw}
+            onChange={(e) => setDeletePw(e.target.value)}
+          />
           <div className="modal-action">
-            <form method="dialog">
-              <button className="btn">Cancel</button>
-            </form>
             <button
               type="button"
-              className="btn btn-error"
-              onClick={handleDelete}
-              disabled={deleting}
+              className="btn"
+              onClick={() => {
+                setDeletePw("");
+                setDeleteError("");
+                deleteDialog.current?.close();
+              }}
             >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-error" disabled={deleting}>
               {deleting && (
                 <span className="loading loading-spinner loading-sm" />
               )}
               Yes, delete
             </button>
           </div>
-        </div>
+        </form>
         <form method="dialog" className="modal-backdrop">
           <button aria-label="Close">close</button>
         </form>

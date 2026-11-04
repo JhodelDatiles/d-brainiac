@@ -9,6 +9,7 @@ import helmet from "helmet";
 import { config } from "./envConfig.ts";
 import conn from "./config/db.ts";
 import authRoutes from "./routes/auth.routes.ts";
+import userRoutes from "./routes/user.routes.ts";
 import { requireSameOrigin } from "./middlewares/requireSameOrigin.ts";
 
 const app = express();
@@ -24,6 +25,7 @@ app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use("/api", requireSameOrigin);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.send("Server's running");

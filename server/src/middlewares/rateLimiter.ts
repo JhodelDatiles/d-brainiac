@@ -35,3 +35,11 @@ export const loginAccountLimiter = limiter(
       .toLowerCase()}`,
   true,
 );
+
+// Per logged-in user. Only failed attempts count (current-password guessing).
+export const passwordGuessLimiter = limiter(
+  5,
+  15 * MIN,
+  (req) => String(req.res?.locals["userId"] ?? ipKeyGenerator(req.ip ?? "")),
+  true,
+);
