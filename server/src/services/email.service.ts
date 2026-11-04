@@ -15,10 +15,15 @@ const getDevTransporter = async (): Promise<Transporter> => {
   if (devTransporter) return devTransporter;
 
   if (config.smtp) {
+    // Email service file — Gmail SMTP transporter
     devTransporter = nodemailer.createTransport({
       host: config.smtp.host,
       port: config.smtp.port,
-      auth: { user: config.smtp.user, pass: config.smtp.pass },
+      secure: config.smtp.port === 465,
+      auth: {
+        user: config.smtp.user,
+        pass: config.smtp.pass,
+      },
     });
   } else {
     // No SMTP configured: use a throwaway Ethereal inbox

@@ -5,15 +5,23 @@ import express, {
 } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { config } from "./envConfig.ts";
 import conn from "./config/db.ts";
 import authRoutes from "./routes/auth.routes.ts";
+import { requireSameOrigin } from "./middlewares/requireSameOrigin.ts";
 
 const app = express();
 
-app.use(express.json());
+// Only needed when deployed behind ONE reverse proxy (Render, Railway, etc.)
+// so rate limiting sees real client IPs. Harmless to leave off locally.
+if (config.isProduction) app.set("trust proxy", 1);
+
+app.use(helmet());
+app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 app.use(cors({ origin: config.clientUrl, credentials: true }));
+app.use("/api", requireSameOrigin);
 
 app.use("/api/auth", authRoutes);
 
@@ -23,6 +31,14 @@ app.get("/", (_req: Request, res: Response) => {
 
 // Error handler: must be last, and must have 4 params
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { type?: string }).type === "entity.parse.failed"
+  ) {
+    res.status(400).json({ message: "Invalid JSON" });
+    return;
+  }
   console.error(err);
   res.status(500).json({ message: "Internal server error" });
 });

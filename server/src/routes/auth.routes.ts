@@ -6,7 +6,12 @@ import {
   signup,
   verifyEmail,
 } from "../controllers/auth.controller.ts";
-import { loginLimiter, signupLimiter } from "../middlewares/rateLimiter.ts";
+import {
+  loginAccountLimiter,
+  loginLimiter,
+  signupLimiter,
+  verifyLimiter,
+} from "../middlewares/rateLimiter.ts";
 import { requireAuth } from "../middlewares/requireAuth.ts";
 import { validate } from "../middlewares/validate.ts";
 import {
@@ -18,8 +23,19 @@ import {
 const router = Router();
 
 router.post("/signup", signupLimiter, validate(signupSchema), signup);
-router.post("/verify-email", validate(verifyEmailSchema), verifyEmail);
-router.post("/login", loginLimiter, validate(loginSchema), login);
+router.post(
+  "/verify-email",
+  verifyLimiter,
+  validate(verifyEmailSchema),
+  verifyEmail,
+);
+router.post(
+  "/login",
+  loginLimiter,
+  loginAccountLimiter,
+  validate(loginSchema),
+  login,
+);
 router.post("/logout", logout);
 router.get("/me", requireAuth, me);
 

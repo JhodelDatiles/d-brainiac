@@ -4,6 +4,7 @@ import { config } from "../envConfig.ts";
 
 export const AUTH_COOKIE = "brainiac_token";
 
+const ISSUER = "brainiac";
 const MAX_AGE_SECONDS = config.jwt.expiresInDays * 24 * 60 * 60;
 
 const cookieOptions: CookieOptions = {
@@ -13,17 +14,32 @@ const cookieOptions: CookieOptions = {
   path: "/",
 };
 
-export const signAuthToken = (userId: string): string =>
-  jwt.sign({ sub: userId }, config.jwt.secret, { expiresIn: MAX_AGE_SECONDS });
+export interface AuthPayload {
+  userId: string;
+  tokenVersion: number;
+}
 
-export const verifyAuthToken = (token: string): string | null => {
+export const signAuthToken = (userId: string, tokenVersion: number): string =>
+  jwt.sign({ sub: userId, tv: tokenVersion }, config.jwt.secret, {
+    algorithm: "HS256",
+    expiresIn: MAX_AGE_SECONDS,
+    issuer: ISSUER,
+  });
+
+export const verifyAuthToken = (token: string): AuthPayload | null => {
   try {
     const payload = jwt.verify(token, config.jwt.secret, {
       algorithms: ["HS256"],
+      issuer: ISSUER,
     });
-    return typeof payload === "object" && typeof payload.sub === "string"
-      ? payload.sub
-      : null;
+    if (
+      typeof payload === "object" &&
+      typeof payload.sub === "string" &&
+      typeof payload.tv === "number"
+    ) {
+      return { userId: payload.sub, tokenVersion: payload.tv };
+    }
+    return null;
   } catch {
     return null;
   }

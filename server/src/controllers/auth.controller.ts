@@ -3,8 +3,18 @@ import bcrypt from "bcryptjs";
 import type { Request, Response } from "express";
 import { config } from "../envConfig.ts";
 import { User } from "../models/User.ts";
-import type { LoginInput, SignupInput, VerifyEmailInput } from "../schemas/auth.schema.ts";
-import { clearAuthCookie, setAuthCookie, signAuthToken } from "../services/token.service.ts";
+import type {
+  LoginInput,
+  SignupInput,
+  VerifyEmailInput,
+} from "../schemas/auth.schema.ts";
+import {
+  AUTH_COOKIE,
+  clearAuthCookie,
+  setAuthCookie,
+  signAuthToken,
+  verifyAuthToken,
+} from "../services/token.service.ts";
 import { sendEmail, verificationEmail } from "../services/email.service.ts";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -39,19 +49,25 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
   }
 
   const { rawToken, hashedToken, expires } = generateVerificationToken();
+  const passwordHash = await bcrypt.hash(password, 12);
   let createdId: string | undefined;
 
   if (existing) {
-    // Signed up before but never confirmed: just issue a fresh link
+    // Signed up before but never confirmed: the latest signup wins,
+    // so update the password too (not just the token)
     await User.updateOne(
       { _id: existing._id },
-      { verificationToken: hashedToken, verificationTokenExpires: expires },
+      {
+        password: passwordHash,
+        verificationToken: hashedToken,
+        verificationTokenExpires: expires,
+      },
     );
   } else {
     try {
       const user = await User.create({
         email,
-        password: await bcrypt.hash(password, 12),
+        password: passwordHash,
         verificationToken: hashedToken,
         verificationTokenExpires: expires,
       });
@@ -78,11 +94,9 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     );
     // Roll back a brand-new account so the user can simply try again
     if (createdId) await User.deleteOne({ _id: createdId });
-    res
-      .status(502)
-      .json({
-        message: "Could not send the verification email. Please try again.",
-      });
+    res.status(502).json({
+      message: "Could not send the verification email. Please try again.",
+    });
     return;
   }
 
@@ -119,7 +133,6 @@ export const verifyEmail = async (
   res.json({ message: "Email confirmed. You can now log in." });
 };
 
-
 // Used so a missing account takes as long to reject as a wrong password
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 12);
 
@@ -132,7 +145,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body as LoginInput;
 
   const user = await User.findOne({ email }).select("+password");
-  const passwordMatches = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user?.password ?? DUMMY_HASH,
+  );
 
   if (!user || !passwordMatches) {
     res.status(401).json({ message: "Invalid email or password" });
@@ -141,16 +157,29 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   if (!user.isVerified) {
     res.status(403).json({
-      message: "Please confirm your email first. Sign up again with the same email to get a new link.",
+      message:
+        "Please confirm your email first. Sign up again with the same email to get a new link.",
     });
     return;
   }
 
-  setAuthCookie(res, signAuthToken(user.id));
+  setAuthCookie(res, signAuthToken(user.id, user.tokenVersion));
   res.json({ user: toPublicUser(user) });
 };
 
-export const logout = (_req: Request, res: Response): void => {
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  const token: unknown = req.cookies?.[AUTH_COOKIE];
+  const payload = typeof token === "string" ? verifyAuthToken(token) : null;
+
+  // Invalidate the JWT server-side (best effort: still clears the cookie
+  // even if the token was already expired or invalid)
+  if (payload) {
+    await User.updateOne(
+      { _id: payload.userId, tokenVersion: payload.tokenVersion },
+      { $inc: { tokenVersion: 1 } },
+    );
+  }
+
   clearAuthCookie(res);
   res.json({ message: "Logged out" });
 };
