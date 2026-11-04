@@ -16,6 +16,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Authenticated */}
       <Route element={<ProtectedRoute />}>
@@ -23,7 +24,6 @@ export default function App() {
           <Route path="/library" element={<Library />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
         </Route>
       </Route>
 
