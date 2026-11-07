@@ -21,6 +21,9 @@ const userSchema = new Schema(
     bio: { type: String, trim: true, maxlength: 300, default: "" },
     gender: { type: String, enum: GENDERS, default: "prefer-not-to-say" },
     avatarUrl: { type: String },
+    // Stored as a SHA-256 hash, never the raw token
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
   },
   { timestamps: true },
 );

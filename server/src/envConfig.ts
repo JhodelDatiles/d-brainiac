@@ -36,7 +36,35 @@ const envSchema = z
   .refine((e) => e.NODE_ENV !== "production" || !!e.BREVO_API_KEY, {
     message: "BREVO_API_KEY is required in production",
     path: ["BREVO_API_KEY"],
-  });
+  })
+  .refine(
+    (e) =>
+      e.NODE_ENV !== "production" ||
+      !!(
+        e.CLOUDINARY_CLOUD_NAME &&
+        e.CLOUDINARY_API_KEY &&
+        e.CLOUDINARY_API_SECRET
+      ),
+    {
+      message:
+        "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are required in production",
+      path: ["CLOUDINARY_CLOUD_NAME"],
+    },
+  )
+  .refine(
+    (e) =>
+      e.NODE_ENV !== "production" || e.CLIENT_URL !== "http://localhost:5173",
+    { message: "CLIENT_URL must be set in production", path: ["CLIENT_URL"] },
+  )
+  .refine(
+    (e) =>
+      e.NODE_ENV !== "production" ||
+      e.MAIL_FROM_EMAIL !== "no-reply@example.com",
+    {
+      message: "MAIL_FROM_EMAIL must be a sender verified in Brevo",
+      path: ["MAIL_FROM_EMAIL"],
+    },
+  );
 
 const parsed = envSchema.safeParse(process.env);
 

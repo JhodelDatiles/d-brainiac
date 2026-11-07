@@ -114,3 +114,22 @@ export const verificationEmail = (
     </div>
   `,
 });
+
+export const resetPasswordEmail = (
+  link: string,
+): { subject: string; html: string } => ({
+  subject: "Reset your password",
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Reset your password</h2>
+      <p>We received a request to reset your password. Click the button below to choose a new one.</p>
+      <p>
+        <a href="${link}"
+           style="display:inline-block;padding:12px 20px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+          Reset password
+        </a>
+      </p>
+      <p style="font-size:13px;color:#666;">This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
+    </div>
+  `,
+});

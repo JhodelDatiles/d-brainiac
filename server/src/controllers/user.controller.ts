@@ -16,6 +16,7 @@ import {
   setAuthCookie,
   signAuthToken,
 } from "../services/token.service.ts";
+import { deleteUserData } from "../services/userCleanup.service.ts";
 
 export const changePassword = async (
   req: Request,
@@ -58,7 +59,7 @@ export const deleteAccount = async (
     }
 
     // Cascade-delete the user's own data here once other models exist
-    if (user.avatarUrl) await deleteAvatarImage(user.id).catch(() => {});
+    if (user.avatarUrl) await deleteUserData(user);
     await User.deleteOne({ _id: user._id });
 
     clearAuthCookie(res);

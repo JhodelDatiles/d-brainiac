@@ -44,3 +44,6 @@ export const passwordGuessLimiter = limiter(
   (req) => String(req.res?.locals["userId"] ?? ipKeyGenerator(req.ip ?? "")),
   true,
 );
+
+export const forgotLimiter = limiter(5);
+export const resetLimiter = limiter(10);

@@ -1,12 +1,14 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { config } from "../envConfig.ts";
 import { User } from "../models/User.ts";
 import { toPublicUser } from "../utils/publicUser.ts";
 import type {
+  ForgotPasswordInput,
   LoginInput,
   ResendVerificationInput,
+  ResetPasswordInput,
   SignupInput,
   VerifyEmailInput,
 } from "../schemas/auth.schema.ts";
@@ -17,10 +19,18 @@ import {
   signAuthToken,
   verifyAuthToken,
 } from "../services/token.service.ts";
-import { sendEmail, verificationEmail } from "../services/email.service.ts";
+import {
+  resetPasswordEmail,
+  sendEmail,
+  verificationEmail,
+} from "../services/email.service.ts";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000;
+const RESET_RESPONSE = {
+  message: "If an account exists for this email, a reset link is on its way.",
+};
 
 // Used so a missing account takes as long to reject as a wrong password
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 12);
@@ -34,19 +44,21 @@ const GENERIC_RESPONSE = {
 const hashToken = (token: string): string =>
   crypto.createHash("sha256").update(token).digest("hex");
 
-const generateVerificationToken = () => {
+const generateVerificationToken = (ttlMs = TOKEN_TTL_MS) => {
   const rawToken = crypto.randomBytes(32).toString("hex");
   return {
     rawToken,
     hashedToken: hashToken(rawToken),
-    expires: new Date(Date.now() + TOKEN_TTL_MS),
+    expires: new Date(Date.now() + ttlMs),
   };
 };
 
 // A new link is allowed only if the last one was sent over a minute ago
-const canSend = (expires: Date | null | undefined): boolean =>
-  !expires ||
-  expires.getTime() - TOKEN_TTL_MS + RESEND_COOLDOWN_MS <= Date.now();
+const canSend = (
+  expires: Date | null | undefined,
+  ttlMs = TOKEN_TTL_MS,
+): boolean =>
+  !expires || expires.getTime() - ttlMs + RESEND_COOLDOWN_MS <= Date.now();
 
 const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -229,4 +241,77 @@ export const me = async (_req: Request, res: Response): Promise<void> => {
   }
 
   res.json({ user: toPublicUser(user) });
+};
+
+const sendResetLink = async (email: string, rawToken: string): Promise<void> => {
+  try {
+    const link = `${config.clientUrl}/reset-password?token=${rawToken}`;
+    await sendEmail({ to: email, ...resetPasswordEmail(link) });
+  } catch (error) {
+    console.error(
+      "Failed to send reset email:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+};
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { email } = req.body as ForgotPasswordInput;
+    const user = await User.findOne({ email }).select("+resetPasswordExpires");
+
+    // Same response whether or not the account exists, is verified, or is rate-gated
+    if (user?.isVerified && canSend(user.resetPasswordExpires, RESET_TTL_MS)) {
+      const { rawToken, hashedToken, expires } =
+        generateVerificationToken(RESET_TTL_MS);
+      await User.updateOne(
+        { _id: user._id },
+        { resetPasswordToken: hashedToken, resetPasswordExpires: expires },
+      );
+      void sendResetLink(email, rawToken);
+    }
+
+    res.json(RESET_RESPONSE);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { token, password } = req.body as ResetPasswordInput;
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const user = await User.findOneAndUpdate(
+      {
+        resetPasswordToken: hashToken(token),
+        resetPasswordExpires: { $gt: new Date() },
+      },
+      {
+        $set: { password: passwordHash },
+        // Invalidates every existing session
+        $inc: { tokenVersion: 1 },
+        $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 },
+      },
+    );
+
+    if (!user) {
+      res.status(400).json({
+        message: "This link is invalid or has expired. Request a new one.",
+      });
+      return;
+    }
+
+    res.json({ message: "Password updated. You can now log in." });
+  } catch (error) {
+    next(error);
+  }
 };
